@@ -8,4 +8,4 @@
 ## 학습 진행 상황
 | 주차 | 인강 범위 | 문서 |
 |------|----------|------|
-| 5~6주차 | Section 1: Spring Boot 시작하기 | [학습 문서](docs/section1-spring-boot-overview.md) |
+| 5~6주차 | Section 1: Spring Boot 시작하기 | [학습 문서](../docs/section1-spring-boot-overview.md) |
