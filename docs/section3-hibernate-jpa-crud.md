@@ -219,3 +219,292 @@ MySQL Workbench에서 `student_tracker` 스키마와 `student` 테이블을 생�
 * MySQL 실습을 위해 `springstudent` 사용자, `student_tracker` 스키마, `student` 테이블을 생성했다.
 * 현재 `student` 테이블은 비어 있으며, 이후 Java 코드로 데이터를 삽입할 예정이다.
 
+---
+
+## 3-9. Spring Boot JPA 프로젝트 생성
+
+이번 범위에서는 JPA 실습을 위한 새로운 Spring Boot 프로젝트를 생성했다.
+
+Spring Initializr에서 다음 설정으로 프로젝트를 생성했다.
+
+| 항목           | 설정값                           |
+| ------------ | ----------------------------- |
+| Project      | Maven                         |
+| Language     | Java                          |
+| Packaging    | Jar                           |
+| Dependencies | MySQL Driver, Spring Data JPA |
+
+생성한 프로젝트는 다음 경로에 추가했다.
+
+```text
+03-spring-boot-hibernate-jpa-crud/
+└── 01-cruddemo-student/
+```
+
+이번 실습에서는 처음부터 REST API를 만들지 않고, `CommandLineRunner`를 사용하는 커맨드라인 애플리케이션으로 시작했다.
+
+이렇게 하는 이유는 웹 요청이나 Controller 없이도 Spring Boot 애플리케이션이 실행된 직후 JPA/DAO 코드를 바로 테스트할 수 있기 때문이다.
+
+나중에는 이 JPA 코드를 CRUD REST API에 연결할 예정이다.
+
+---
+
+## 3-10. Spring Boot의 DataSource 자동 설정
+
+Spring Boot에서는 `pom.xml`에 추가된 의존성과 `application.properties`의 설정값을 바탕으로 데이터베이스 연결을 자동 설정한다.
+
+이번 프로젝트에는 다음 의존성을 추가했다.
+
+* MySQL Driver
+* Spring Data JPA
+
+Spring Boot는 이 정보를 보고 내부적으로 다음과 같은 Bean을 자동으로 생성한다.
+
+* `DataSource`
+* `EntityManager`
+
+`DataSource`는 데이터베이스 연결 정보를 관리하는 객체이고, `EntityManager`는 JPA에서 데이터베이스 저장, 조회, 수정, 삭제 작업을 수행할 때 사용하는 핵심 객체이다.
+
+---
+
+## 3-11. application.properties 데이터베이스 연결 설정
+
+`application.properties` 파일에 MySQL 연결 정보를 추가했다.
+
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/student_tracker
+spring.datasource.username=springstudent
+spring.datasource.password=springstudent
+```
+
+각 설정의 의미는 다음과 같다.
+
+| 설정                           | 의미                   |
+| ---------------------------- | -------------------- |
+| `spring.datasource.url`      | 연결할 MySQL 데이터베이스 URL |
+| `spring.datasource.username` | 데이터베이스 접속 사용자 이름     |
+| `spring.datasource.password` | 데이터베이스 접속 비밀번호       |
+
+여기서 `student_tracker`는 이전 강의에서 생성한 데이터베이스 스키마이고, `springstudent`는 애플리케이션 접속용으로 생성한 MySQL 사용자이다.
+
+JDBC Driver 클래스 이름은 따로 작성하지 않았다.
+Spring Boot가 `spring.datasource.url` 값을 보고 MySQL Driver를 자동으로 감지하기 때문이다.
+
+---
+
+## 3-12. 로그 출력 줄이기
+
+커맨드라인 애플리케이션에서는 Spring Boot 배너와 많은 로그가 매번 출력되면 결과를 확인하기 불편하다.
+
+그래서 `application.properties`에 다음 설정을 추가했다.
+
+```properties
+spring.main.banner-mode=off
+logging.level.root=warn
+```
+
+`spring.main.banner-mode=off`는 Spring Boot 실행 배너를 숨기는 설정이다.
+
+`logging.level.root=warn`은 로그 레벨을 warning 이상으로 줄이는 설정이다.
+이렇게 설정하면 일반적인 Spring 내부 로그는 줄어들지만, warning이나 error는 계속 출력된다.
+
+즉, 정상 실행 시에는 내가 작성한 출력 결과를 보기 쉬워지고, 문제가 발생하면 오류 메시지는 여전히 확인할 수 있다.
+
+---
+
+## 3-13. CommandLineRunner 설정
+
+`CommandLineRunner`는 Spring Bean들이 모두 로드된 뒤 특정 코드를 실행할 수 있게 해주는 기능이다.
+
+이번 실습에서는 `CruddemoApplication` 클래스에 `CommandLineRunner` Bean을 추가했다.
+
+```java
+@Bean
+public CommandLineRunner commandLineRunner(String[] args) {
+    return runner -> {
+        System.out.println("Hello World");
+    };
+}
+```
+
+현재는 단순히 `Hello World`를 출력하지만, 이후에는 이 위치에서 DAO 코드를 호출하여 데이터베이스 저장, 조회, 수정, 삭제 작업을 테스트할 예정이다.
+
+실행 결과 콘솔에 `Hello World`가 출력되는 것을 확인했다.
+
+![CommandLineRunner 실행 결과](screenshots/section3-command-line-runner-hello-world.png)
+
+---
+
+## 3-14. JPA Entity Annotation 개념
+
+JPA에서는 데이터베이스 테이블과 매핑되는 Java 클래스를 Entity class라고 한다.
+
+이번 실습에서는 `Student` 클래스를 만들고, 이 클래스를 MySQL의 `student` 테이블과 매핑했다.
+
+JPA Entity 클래스에는 최소한 다음 조건이 필요하다.
+
+* `@Entity` 어노테이션이 있어야 한다.
+* public 또는 protected 기본 생성자가 있어야 한다.
+* 데이터베이스 테이블과 매핑될 필드를 가져야 한다.
+
+Java에서 아무 생성자도 만들지 않으면 기본 생성자가 자동으로 제공된다.
+하지만 인자가 있는 생성자를 직접 만들면 기본 생성자는 자동으로 제공되지 않는다.
+
+따라서 JPA Entity에서는 기본 생성자를 명시적으로 작성하는 것이 안전하다.
+
+---
+
+## 3-15. Student Entity 클래스 작성
+
+`entity` 패키지를 만들고 `Student` 클래스를 생성했다.
+
+패키지 구조는 다음과 같다.
+
+```text
+src/main/java/com/luv2code/cruddemo/
+├── CruddemoApplication.java
+└── entity/
+    └── Student.java
+```
+
+`Student` 클래스는 다음과 같이 `student` 테이블과 매핑된다.
+
+```java
+@Entity
+@Table(name = "student")
+public class Student {
+    ...
+}
+```
+
+사용한 주요 JPA 어노테이션은 다음과 같다.
+
+| 어노테이션             | 역할                          |
+| ----------------- | --------------------------- |
+| `@Entity`         | 해당 Java 클래스를 JPA Entity로 등록 |
+| `@Table`          | 매핑할 데이터베이스 테이블 이름 지정        |
+| `@Id`             | Primary Key 필드 지정           |
+| `@GeneratedValue` | Primary Key 값 생성 전략 지정      |
+| `@Column`         | Java 필드와 DB 컬럼 매핑           |
+
+---
+
+## 3-16. Student 필드와 DB 컬럼 매핑
+
+`Student` 클래스에는 다음 네 개의 필드를 작성했다.
+
+```java
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "id")
+private int id;
+
+@Column(name = "first_name")
+private String firstName;
+
+@Column(name = "last_name")
+private String lastName;
+
+@Column(name = "email")
+private String email;
+```
+
+Java 필드와 데이터베이스 컬럼의 매핑 관계는 다음과 같다.
+
+| Java 필드     | DB 컬럼        |
+| ----------- | ------------ |
+| `id`        | `id`         |
+| `firstName` | `first_name` |
+| `lastName`  | `last_name`  |
+| `email`     | `email`      |
+
+`firstName`과 `lastName`은 Java에서는 CamelCase로 작성하지만, 데이터베이스에서는 `first_name`, `last_name`처럼 언더스코어 형식을 사용한다.
+
+따라서 `@Column(name = "...")`을 사용해서 Java 필드와 실제 DB 컬럼 이름을 명확하게 연결했다.
+
+`@Column`은 생략할 수도 있지만, 생략하면 Java 필드 이름과 DB 컬럼 이름이 같다고 가정한다.
+이 경우 나중에 Java 필드명을 리팩터링하면 기존 DB 컬럼명과 맞지 않아 문제가 생길 수 있다.
+
+그래서 이번 실습에서는 `@Column`을 명시적으로 작성했다.
+
+---
+
+## 3-17. Primary Key와 GenerationType.IDENTITY
+
+`id` 필드는 `student` 테이블의 Primary Key이다.
+
+Primary Key는 테이블의 각 행을 고유하게 식별하는 값이다.
+
+Primary Key는 다음 조건을 가진다.
+
+* 각 행마다 고유해야 한다.
+* `NULL` 값을 가질 수 없다.
+
+MySQL에서는 `AUTO_INCREMENT`를 사용해서 Primary Key 값을 자동으로 증가시킬 수 있다.
+
+JPA에서는 다음과 같이 설정했다.
+
+```java
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "id")
+private int id;
+```
+
+`@Id`는 해당 필드가 Primary Key임을 의미한다.
+
+`@GeneratedValue(strategy = GenerationType.IDENTITY)`는 Primary Key 생성을 데이터베이스에 맡긴다는 의미이다.
+
+즉, Java 코드에서 `id` 값을 직접 지정하지 않고, MySQL이 자동으로 증가된 값을 생성한다.
+
+---
+
+## 3-18. Student 생성자, Getter/Setter, toString
+
+JPA Entity 클래스에는 기본 생성자가 필요하므로 다음 생성자를 추가했다.
+
+```java
+public Student() {
+}
+```
+
+또한 객체 생성 편의를 위해 `firstName`, `lastName`, `email`을 받는 생성자도 추가했다.
+
+```java
+public Student(String firstName, String lastName, String email) {
+    this.firstName = firstName;
+    this.lastName = lastName;
+    this.email = email;
+}
+```
+
+`id`는 생성자에 포함하지 않았다.
+이 값은 MySQL의 `AUTO_INCREMENT`와 JPA의 `GenerationType.IDENTITY`에 의해 자동 생성되기 때문이다.
+
+이후 IDE 기능을 사용해서 다음 코드들도 자동 생성했다.
+
+* Getter
+* Setter
+* `toString()`
+
+강의에서는 Lombok을 사용할 수도 있지만, 초반 학습 단계에서는 코드가 실제로 어떻게 구성되는지 직접 확인하기 위해 Lombok을 사용하지 않았다.
+
+---
+
+
+## 3-19. 이번 범위에서 배운 점
+
+이번 범위에서는 JPA 실습 프로젝트를 만들고, 데이터베이스 연결 설정과 Entity 클래스 매핑을 진행했다.
+
+정리하면 다음과 같다.
+
+* Spring Initializr에서 MySQL Driver와 Spring Data JPA 의존성을 추가했다.
+* Spring Boot는 `application.properties`의 DB 연결 정보를 읽어 DataSource를 자동 설정한다.
+* Hibernate는 Spring Boot에서 기본 JPA 구현체로 사용된다.
+* `CommandLineRunner`를 사용하면 Spring Bean 로딩 이후 특정 코드를 실행할 수 있다.
+* JPA Entity는 데이터베이스 테이블과 매핑되는 Java 클래스이다.
+* `@Entity`, `@Table`, `@Column`, `@Id`, `@GeneratedValue`를 사용해서 Java 클래스와 DB 테이블을 연결할 수 있다.
+* `GenerationType.IDENTITY`는 기본 키 생성을 데이터베이스에 맡기는 방식이다.
+* JPA Entity 클래스에는 기본 생성자가 필요하다.
+
+---
