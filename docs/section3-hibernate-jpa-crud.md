@@ -508,3 +508,296 @@ public Student(String firstName, String lastName, String email) {
 * JPA Entity 클래스에는 기본 생성자가 필요하다.
 
 ---
+
+3-20. DAO 패턴 개요
+
+이번 범위에서는 JPA를 사용해서 Student 객체를 실제 데이터베이스에 저장하는 코드를 작성했다.
+
+이를 위해 DAO 패턴을 사용했다.
+
+DAO는 Data Access Object의 약자로, 애플리케이션 코드와 데이터베이스 사이에서 데이터 접근 작업을 담당하는 객체이다.
+
+구조를 단순하게 표현하면 다음과 같다.
+
+Application
+↓
+StudentDAO
+↓
+EntityManager
+↓
+DataSource
+↓
+Database
+
+애플리케이션이 직접 데이터베이스와 통신하는 것이 아니라, StudentDAO를 통해 저장, 조회, 수정, 삭제 작업을 수행한다.
+
+이렇게 하면 데이터베이스 접근 코드가 한 곳에 모이기 때문에 코드 구조가 더 깔끔해진다.
+
+3-21. EntityManager와 DataSource
+
+EntityManager는 JPA에서 Entity를 저장하고 조회하는 핵심 객체이다.
+
+이번 실습에서는 StudentDAO 안에서 EntityManager를 사용하여 Student 객체를 데이터베이스에 저장했다.
+
+EntityManager는 내부적으로 DataSource를 사용한다.
+
+DataSource는 데이터베이스 연결 정보를 관리하는 객체이다.
+
+Spring Boot는 다음 정보를 바탕으로 DataSource와 EntityManager를 자동 생성한다.
+
+pom.xml의 MySQL Driver, Spring Data JPA 의존성
+application.properties의 DB 접속 URL, username, password
+
+즉, 개발자가 직접 DataSource와 EntityManager를 생성하지 않아도 Spring Boot가 자동으로 Bean을 만들어준다.
+
+그리고 우리는 이 Bean을 DAO에 주입해서 사용하면 된다.
+
+3-22. StudentDAO 인터페이스 작성
+
+먼저 dao 패키지를 만들고, StudentDAO 인터페이스를 작성했다.
+
+패키지 구조는 다음과 같다.
+
+src/main/java/com/luv2code/cruddemo/
+├── CruddemoApplication.java
+├── entity/
+│   └── Student.java
+└── dao/
+├── StudentDAO.java
+└── StudentDAOImpl.java
+
+StudentDAO 인터페이스에는 학생 객체를 저장하기 위한 save 메서드를 정의했다.
+
+package com.luv2code.cruddemo.dao;
+
+import com.luv2code.cruddemo.entity.Student;
+
+public interface StudentDAO {
+
+    void save(Student student);
+}
+
+이 인터페이스는 DAO가 어떤 기능을 제공해야 하는지 정의하는 역할을 한다.
+
+실제 저장 기능의 구현은 StudentDAOImpl 클래스에서 작성한다.
+
+3-23. StudentDAOImpl 구현
+
+StudentDAOImpl 클래스는 StudentDAO 인터페이스를 구현하는 클래스이다.
+
+이 클래스에는 @Repository 어노테이션을 붙였다.
+
+@Repository
+public class StudentDAOImpl implements StudentDAO {
+...
+}
+
+@Repository는 DAO 구현체에 붙이는 Spring 어노테이션이다.
+
+이 어노테이션을 사용하면 다음 기능을 얻을 수 있다.
+
+Spring Component Scan을 통해 Bean으로 자동 등록
+데이터베이스 관련 예외를 Spring의 unchecked exception으로 변환
+
+즉, @Repository를 붙이면 Spring이 이 DAO 클래스를 관리 대상으로 인식한다.
+
+3-24. EntityManager 생성자 주입
+
+StudentDAOImpl에서 JPA의 EntityManager를 사용하기 위해 필드를 선언하고, 생성자 주입 방식으로 주입받았다.
+
+private EntityManager entityManager;
+
+@Autowired
+public StudentDAOImpl(EntityManager entityManager) {
+this.entityManager = entityManager;
+}
+
+EntityManager는 Spring Boot가 자동 생성한 Bean이다.
+
+생성자가 하나뿐이면 @Autowired는 생략할 수 있지만, 강의에서는 학습 목적으로 명시했다.
+
+이렇게 주입받은 EntityManager를 사용해서 이후 Student 객체를 데이터베이스에 저장한다.
+
+3-25. save 메서드와 @Transactional
+
+save 메서드에서는 EntityManager의 persist 메서드를 사용했다.
+
+@Override
+@Transactional
+public void save(Student student) {
+entityManager.persist(student);
+}
+
+entityManager.persist(student)는 전달받은 Student 객체를 데이터베이스에 저장하는 역할을 한다.
+
+그리고 이 메서드에는 @Transactional 어노테이션을 붙였다.
+
+@Transactional은 해당 메서드가 트랜잭션 안에서 실행되도록 해준다.
+
+데이터베이스에 데이터를 저장하거나 수정하거나 삭제하는 작업은 트랜잭션 안에서 수행되어야 한다.
+
+Spring의 @Transactional을 사용하면 개발자가 직접 트랜잭션 시작과 종료를 작성하지 않아도 된다.
+
+Spring이 내부적으로 트랜잭션을 시작하고, 작업이 끝나면 commit 또는 rollback을 처리한다.
+
+3-26. StudentDAOImpl 전체 코드
+
+이번 실습에서 작성한 StudentDAOImpl의 핵심 구조는 다음과 같다.
+
+package com.luv2code.cruddemo.dao;
+
+import com.luv2code.cruddemo.entity.Student;
+import jakarta.persistence.EntityManager;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Repository
+public class StudentDAOImpl implements StudentDAO {
+
+    private EntityManager entityManager;
+
+    @Autowired
+    public StudentDAOImpl(EntityManager entityManager) {
+        this.entityManager = entityManager;
+    }
+
+    @Override
+    @Transactional
+    public void save(Student student) {
+        entityManager.persist(student);
+    }
+}
+
+이 코드를 통해 StudentDAO는 Student 객체를 데이터베이스에 저장할 수 있게 되었다.
+
+3-27. CommandLineRunner에서 StudentDAO 사용
+
+이제 메인 애플리케이션에서 StudentDAO를 주입받아 사용했다.
+
+기존에는 CommandLineRunner에서 Hello World만 출력했지만, 이번에는 StudentDAO를 사용해서 실제 학생 객체를 생성하고 저장했다.
+
+@Bean
+public CommandLineRunner commandLineRunner(StudentDAO studentDAO) {
+return runner -> {
+createStudent(studentDAO);
+};
+}
+
+CommandLineRunner의 파라미터로 StudentDAO를 선언하면 Spring이 자동으로 StudentDAOImpl Bean을 주입한다.
+
+즉, 직접 new StudentDAOImpl()을 하지 않아도 Spring이 객체를 관리하고 연결해준다.
+
+3-28. Student 객체 하나 저장
+
+먼저 createStudent 메서드를 만들어 학생 한 명을 저장했다.
+
+private void createStudent(StudentDAO studentDAO) {
+
+    System.out.println("Creating new student object...");
+
+    Student tempStudent = new Student("Paul", "Doe", "paul@luv2code.com");
+
+    System.out.println("Saving the student...");
+
+    studentDAO.save(tempStudent);
+
+    System.out.println("Saved student. Generated id: " + tempStudent.getId());
+}
+
+이 메서드의 흐름은 다음과 같다.
+
+new Student(...)로 Student 객체 생성
+studentDAO.save(tempStudent)로 데이터베이스에 저장
+저장 후 자동 생성된 id 출력
+
+id는 Java 코드에서 직접 지정하지 않았다.
+
+Student Entity에서 GenerationType.IDENTITY를 사용했기 때문에 MySQL의 AUTO_INCREMENT 기능으로 자동 생성된다.
+
+3-29. MySQL Workbench에서 저장 결과 확인
+
+애플리케이션 실행 전에는 student 테이블이 비어 있었다.
+
+애플리케이션을 실행한 뒤 MySQL Workbench에서 student 테이블을 다시 조회하니, Paul Doe 데이터가 저장된 것을 확인할 수 있었다.
+
+SELECT * FROM student_tracker.student;
+
+저장된 데이터의 id는 1이었다.
+
+이는 애플리케이션 콘솔에 출력된 generated id와 일치한다.
+
+3-30. Primary Key와 Auto Increment 확인
+
+MySQL Workbench에서 student 테이블의 구조를 확인했다.
+
+student 테이블은 다음 컬럼으로 구성되어 있다.
+
+컬럼명	설명
+id	Primary Key, Auto Increment
+first_name	학생 이름
+last_name	학생 성
+email	이메일
+
+Workbench에서 테이블 정보를 보면 id 컬럼에 다음 표시가 있다.
+
+표시	의미
+PK	Primary Key
+NN	Not Null
+AI	Auto Increment
+
+즉, id 컬럼은 기본 키이며, null 값을 가질 수 없고, MySQL이 자동으로 값을 증가시킨다.
+
+3-31. 여러 Student 객체 저장
+
+Auto Increment가 실제로 동작하는지 확인하기 위해 여러 명의 학생을 저장하는 메서드도 작성했다.
+
+기존 createStudent 호출은 주석 처리하고, createMultipleStudents를 호출했다.
+
+@Bean
+public CommandLineRunner commandLineRunner(StudentDAO studentDAO) {
+return runner -> {
+createMultipleStudents(studentDAO);
+};
+}
+
+createMultipleStudents 메서드에서는 세 명의 학생을 생성하고 저장했다.
+
+private void createMultipleStudents(StudentDAO studentDAO) {
+
+    System.out.println("Creating 3 student objects...");
+
+    Student tempStudent1 = new Student("John", "Doe", "john@luv2code.com");
+    Student tempStudent2 = new Student("Mary", "Public", "mary@luv2code.com");
+    Student tempStudent3 = new Student("Bonita", "Applebum", "bonita@luv2code.com");
+
+    System.out.println("Saving the students...");
+
+    studentDAO.save(tempStudent1);
+    studentDAO.save(tempStudent2);
+    studentDAO.save(tempStudent3);
+}
+
+이후 MySQL Workbench에서 student 테이블을 조회하니 기존 Paul Doe에 이어 새로운 학생 세 명이 추가된 것을 확인했다.
+
+또한 id 값이 자동으로 증가하는 것도 확인할 수 있었다.
+
+
+
+
+3-32. 이번 범위에서 배운 점
+
+이번 범위에서는 JPA를 사용해서 Java 객체를 실제 데이터베이스에 저장하는 방법을 학습했다.
+
+정리하면 다음과 같다.
+
+DAO는 애플리케이션과 데이터베이스 사이에서 데이터 접근을 담당하는 객체이다.
+StudentDAO 인터페이스를 만들고, StudentDAOImpl에서 실제 저장 기능을 구현했다.
+@Repository를 사용하면 DAO 구현체가 Spring Bean으로 등록된다.
+EntityManager는 JPA에서 Entity를 저장하고 조회하는 핵심 객체이다.
+EntityManager는 생성자 주입으로 DAO에 주입했다.
+entityManager.persist(student)를 사용해서 Student 객체를 데이터베이스에 저장했다.
+@Transactional을 사용해서 저장 작업을 트랜잭션 안에서 실행했다.
+CommandLineRunner에서 StudentDAO를 주입받아 저장 코드를 실행했다.
+MySQL Workbench에서 실제 데이터가 저장된 것을 확인했다.
+MySQL의 AUTO_INCREMENT 기능으로 id 값이 자동 증가하는 것을 확인했다.

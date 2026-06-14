@@ -6,16 +6,13 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="mycoolapp" />
+        <module name="cruddemo" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="cruddemo" target="21" />
-    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="mycoolapp" options="-parameters" />
+      <module name="cruddemo" options="-parameters" />
     </option>
   </component>
 </project>
