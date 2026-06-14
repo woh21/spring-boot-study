@@ -801,3 +801,302 @@ entityManager.persist(student)를 사용해서 Student 객체를 데이터베이
 CommandLineRunner에서 StudentDAO를 주입받아 저장 코드를 실행했다.
 MySQL Workbench에서 실제 데이터가 저장된 것을 확인했다.
 MySQL의 AUTO_INCREMENT 기능으로 id 값이 자동 증가하는 것을 확인했다.
+
+---
+
+## 3-34. JPA로 객체 조회하기
+
+이번 범위에서는 JPA를 사용해서 데이터베이스에 저장된 `Student` 객체를 조회하는 방법을 학습했다.
+
+앞에서는 `Student` 객체를 생성하고 데이터베이스에 저장하는 Create 기능을 구현했다.
+이번에는 CRUD 중 Read 기능을 구현했다.
+
+JPA에서 Primary Key를 기준으로 Entity를 조회할 때는 `EntityManager.find()`를 사용할 수 있다.
+
+기본 형태는 다음과 같다.
+
+```java
+Student student = entityManager.find(Student.class, id);
+```
+
+첫 번째 인자인 `Student.class`는 조회할 Entity 클래스이고,
+두 번째 인자인 `id`는 Primary Key 값이다.
+
+만약 해당 Primary Key를 가진 데이터가 존재하면 `Student` 객체를 반환한다.
+존재하지 않으면 `null`을 반환한다.
+
+---
+
+## 3-35. StudentDAO에 findById 메서드 추가
+
+먼저 `StudentDAO` 인터페이스에 id로 학생을 조회하는 메서드를 추가했다.
+
+```java
+Student findById(Integer id);
+```
+
+전체 흐름은 다음과 같다.
+
+```text
+CommandLineRunner
+    ↓
+StudentDAO.findById(id)
+    ↓
+StudentDAOImpl.findById(id)
+    ↓
+EntityManager.find(Student.class, id)
+    ↓
+Database 조회
+```
+
+---
+
+## 3-36. StudentDAOImpl에서 findById 구현
+
+`StudentDAOImpl`에서는 `EntityManager.find()`를 사용해서 `findById` 메서드를 구현했다.
+
+```java
+@Override
+public Student findById(Integer id) {
+    return entityManager.find(Student.class, id);
+}
+```
+
+이 메서드는 단순 조회 작업이므로 `@Transactional`을 붙이지 않았다.
+
+`@Transactional`은 저장, 수정, 삭제처럼 데이터베이스 상태를 변경하는 작업에서 필요하다.
+단순 조회는 데이터베이스를 변경하지 않기 때문에 이번 코드에서는 사용하지 않았다.
+
+---
+
+## 3-37. CommandLineRunner에서 readStudent 실행
+
+메인 애플리케이션에서는 `readStudent` 메서드를 만들어 조회 기능을 테스트했다.
+
+흐름은 다음과 같다.
+
+1. 새로운 `Student` 객체 생성
+2. `studentDAO.save()`로 저장
+3. 저장 후 생성된 id 출력
+4. 해당 id를 사용해서 `studentDAO.findById()` 호출
+5. 조회된 학생 출력
+
+예시 코드는 다음과 같다.
+
+```java
+private void readStudent(StudentDAO studentDAO) {
+
+    System.out.println("Creating new student object...");
+
+    Student tempStudent = new Student("Daffy", "Duck", "daffy@luv2code.com");
+
+    System.out.println("Saving the student...");
+
+    studentDAO.save(tempStudent);
+
+    int theId = tempStudent.getId();
+
+    System.out.println("Saved student. Generated id: " + theId);
+
+    System.out.println("Retrieving student with id: " + theId);
+
+    Student myStudent = studentDAO.findById(theId);
+
+    System.out.println("Found the student: " + myStudent);
+}
+```
+
+이 실습을 통해 JPA가 저장된 Entity의 Primary Key를 기준으로 객체를 다시 조회할 수 있음을 확인했다.
+
+---
+
+## 3-38. JPQL 개요
+
+JPA에서는 여러 객체를 조회하기 위해 JPQL을 사용할 수 있다.
+
+JPQL은 JPA Query Language의 약자이다.
+
+SQL과 비슷하게 조건 조회, 정렬, `where`, `like`, `order by` 등을 사용할 수 있다.
+
+하지만 SQL과 중요한 차이가 있다.
+
+SQL은 데이터베이스 테이블 이름과 컬럼 이름을 기준으로 작성한다.
+반면 JPQL은 JPA Entity 이름과 Entity 필드 이름을 기준으로 작성한다.
+
+예를 들어 DB 테이블 이름이 `student`이고, Java Entity 클래스 이름이 `Student`라면 JPQL에서는 다음처럼 작성한다.
+
+```java
+"FROM Student"
+```
+
+여기서 `Student`는 데이터베이스 테이블 이름이 아니라 JPA Entity 클래스 이름이다.
+
+또한 `first_name`, `last_name` 같은 DB 컬럼명이 아니라 `firstName`, `lastName` 같은 Java 필드명을 사용한다.
+
+---
+
+## 3-39. findAll 메서드 추가
+
+모든 학생 목록을 조회하기 위해 `StudentDAO` 인터페이스에 `findAll` 메서드를 추가했다.
+
+```java
+List<Student> findAll();
+```
+
+`StudentDAOImpl`에서는 `EntityManager.createQuery()`를 사용해서 구현했다.
+
+```java
+@Override
+public List<Student> findAll() {
+
+    TypedQuery<Student> theQuery = entityManager.createQuery("FROM Student", Student.class);
+
+    return theQuery.getResultList();
+}
+```
+
+`TypedQuery<Student>`를 사용하면 조회 결과가 `Student` 타입의 리스트임을 명확하게 지정할 수 있다.
+
+`getResultList()`는 쿼리 결과를 리스트로 반환한다.
+
+---
+
+## 3-40. 전체 Student 목록 조회
+
+메인 애플리케이션에서는 `queryForStudents` 메서드를 만들어 전체 학생 목록을 출력했다.
+
+```java
+private void queryForStudents(StudentDAO studentDAO) {
+
+    List<Student> theStudents = studentDAO.findAll();
+
+    for (Student tempStudent : theStudents) {
+        System.out.println(tempStudent);
+    }
+}
+```
+
+이 메서드를 실행하면 데이터베이스의 `student` 테이블에 저장된 모든 학생이 출력된다.
+
+MySQL Workbench에서 조회한 결과와 애플리케이션 콘솔 출력이 일치하는 것을 확인했다.
+
+---
+
+## 3-41. JPQL order by 정렬
+
+처음에는 학생 목록이 데이터가 입력된 순서대로 출력되었다.
+
+성을 기준으로 정렬하기 위해 JPQL에 `order by`를 추가했다.
+
+```java
+TypedQuery<Student> theQuery = entityManager.createQuery(
+        "FROM Student order by lastName", Student.class);
+```
+
+여기서 `lastName`은 데이터베이스 컬럼명 `last_name`이 아니라, `Student` Entity의 Java 필드명이다.
+
+JPQL에서 `order by lastName`은 기본적으로 오름차순 정렬이다.
+
+명시적으로 오름차순을 쓰고 싶으면 다음과 같이 작성할 수 있다.
+
+```java
+"FROM Student order by lastName asc"
+```
+
+내림차순 정렬은 다음과 같이 작성한다.
+
+```java
+"FROM Student order by lastName desc"
+```
+
+이번 실습에서는 `lastName` 기준 오름차순과 내림차순 정렬 결과를 모두 확인했다.
+
+---
+
+## 3-42. findByLastName 메서드 추가
+
+특정 last name을 가진 학생만 조회하기 위해 `StudentDAO` 인터페이스에 `findByLastName` 메서드를 추가했다.
+
+```java
+List<Student> findByLastName(String theLastName);
+```
+
+이 메서드는 전달받은 `theLastName` 값과 일치하는 학생 목록을 반환한다.
+
+---
+
+## 3-43. JPQL Named Parameter 사용
+
+`StudentDAOImpl`에서는 JPQL named parameter를 사용해서 `findByLastName`을 구현했다.
+
+```java
+@Override
+public List<Student> findByLastName(String theLastName) {
+
+    TypedQuery<Student> theQuery = entityManager.createQuery(
+            "FROM Student WHERE lastName = :theData", Student.class);
+
+    theQuery.setParameter("theData", theLastName);
+
+    return theQuery.getResultList();
+}
+```
+
+여기서 `:theData`는 JPQL named parameter이다.
+
+named parameter는 콜론(`:`)으로 시작하며, 나중에 실제 값을 채워 넣는 placeholder 역할을 한다.
+
+```java
+theQuery.setParameter("theData", theLastName);
+```
+
+위 코드에서 `"theData"`는 JPQL 안에서 사용한 파라미터 이름이고,
+`theLastName`은 실제로 전달할 값이다.
+
+이 방식을 사용하면 `lastName = 'Doe'`처럼 값을 하드코딩하지 않고, 메서드 인자로 받은 값에 따라 동적으로 조회할 수 있다.
+
+---
+
+## 3-44. lastName 기준 조회 테스트
+
+메인 애플리케이션에서는 `queryForStudentsByLastName` 메서드를 만들어 last name 기준 조회를 테스트했다.
+
+```java
+private void queryForStudentsByLastName(StudentDAO studentDAO) {
+
+    List<Student> theStudents = studentDAO.findByLastName("Duck");
+
+    for (Student tempStudent : theStudents) {
+        System.out.println(tempStudent);
+    }
+}
+```
+
+먼저 `"Duck"`을 전달하여 `Daffy Duck`이 조회되는 것을 확인했다.
+
+이후 `"Doe"`를 전달하여 `Doe` 성을 가진 학생이 조회되는 것도 확인했다.
+
+이 실습을 통해 JPQL의 `WHERE` 절과 named parameter를 사용하면 조건에 맞는 Entity 목록을 조회할 수 있다는 것을 확인했다.
+
+
+
+---
+
+## 3-45. 이번 범위에서 배운 점
+
+이번 범위에서는 JPA를 사용한 조회 기능을 학습했다.
+
+정리하면 다음과 같다.
+
+* `EntityManager.find()`를 사용하면 Primary Key 기준으로 Entity를 조회할 수 있다.
+* 조회 대상이 없으면 `null`이 반환된다.
+* 단순 조회 작업에는 `@Transactional`을 붙이지 않아도 된다.
+* JPQL은 데이터베이스 테이블/컬럼명이 아니라 Entity 이름과 Entity 필드명을 기준으로 작성한다.
+* `TypedQuery<Student>`를 사용하면 조회 결과 타입을 명확하게 지정할 수 있다.
+* `getResultList()`를 사용하면 여러 Entity를 리스트로 조회할 수 있다.
+* JPQL의 `order by`를 사용해 정렬할 수 있다.
+* JPQL named parameter는 `:파라미터명` 형태로 작성한다.
+* `setParameter()`를 사용해서 named parameter에 실제 값을 넣는다.
+* named parameter를 사용하면 값을 하드코딩하지 않고 동적으로 조건 조회를 수행할 수 있다.
+
+---
