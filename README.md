@@ -10,8 +10,10 @@
 |-------|----------|------|
 | 5~6주차 | Section 1: Spring Boot 시작하기 | [학습 문서](docs/section1-spring-boot-overview.md) |
 | 7~8주차 | Section 2: Spring Core (DI, IoC) | [학습 문서](docs/section2-spring-core.md) |
+| 진행 중 | Section 3: Hibernate/JPA CRUD | [학습 문서](docs/section3-hibernate-jpa-crud.md) |
 
 ## 프로젝트 구조
-- `mycoolapp/` — Section 1 실습 프로젝트 (Hello World, application.properties)
-- `springcoredemo/` — Section 2 실습 프로젝트 (DI, Component Scan, Qualifier, Scope, Lifecycle)
+- `mycoolapp/` — Section 1 실습 프로젝트
+- `springcoredemo/` — Section 2 Spring Core 실습 프로젝트
+- `03-spring-boot-hibernate-jpa-crud/` — Section 3 Hibernate/JPA CRUD 실습 프로젝트
 - `docs/` — 학습 문서 및 스크린샷

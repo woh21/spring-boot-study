@@ -331,7 +331,7 @@ public CommandLineRunner commandLineRunner(String[] args) {
 
 실행 결과 콘솔에 `Hello World`가 출력되는 것을 확인했다.
 
-![CommandLineRunner 실행 결과](screenshots/section3-command-line-runner-hello-world.png)
+
 
 ---
 
@@ -1100,3 +1100,295 @@ private void queryForStudentsByLastName(StudentDAO studentDAO) {
 * named parameter를 사용하면 값을 하드코딩하지 않고 동적으로 조건 조회를 수행할 수 있다.
 
 ---
+
+
+## 3-47. JPA로 객체 수정하기
+
+이번 범위에서는 CRUD 중 Update 기능을 구현했다.
+
+JPA에서 객체를 수정하는 기본 흐름은 다음과 같다.
+
+1. `EntityManager.find()`로 수정할 Entity를 조회한다.
+2. 조회한 객체의 setter 메서드로 값을 변경한다.
+3. `EntityManager.merge()`를 사용해서 변경된 Entity를 데이터베이스에 반영한다.
+
+예를 들어 `Student` 객체의 이름을 수정하려면 다음과 같은 흐름으로 진행된다.
+
+```java
+Student myStudent = entityManager.find(Student.class, id);
+
+myStudent.setFirstName("Scooby");
+
+entityManager.merge(myStudent);
+```
+
+`merge()`는 전달받은 Entity의 변경 내용을 데이터베이스에 반영하는 역할을 한다.
+
+---
+
+## 3-48. StudentDAO에 update 메서드 추가
+
+먼저 `StudentDAO` 인터페이스에 `update` 메서드를 추가했다.
+
+```java
+void update(Student student);
+```
+
+이 메서드는 수정할 `Student` 객체를 전달받는다.
+
+---
+
+## 3-49. StudentDAOImpl에서 update 구현
+
+`StudentDAOImpl`에서는 `EntityManager.merge()`를 사용해서 `update` 메서드를 구현했다.
+
+```java
+@Override
+@Transactional
+public void update(Student student) {
+    entityManager.merge(student);
+}
+```
+
+`update`는 데이터베이스의 내용을 변경하는 작업이기 때문에 `@Transactional` 어노테이션을 붙였다.
+
+앞에서 구현한 `findById`, `findAll`, `findByLastName` 같은 조회 메서드는 읽기 전용 작업이므로 `@Transactional`이 필요하지 않았다.
+하지만 `update`는 실제로 데이터베이스를 수정하는 작업이므로 트랜잭션 안에서 실행되어야 한다.
+
+---
+
+## 3-50. CommandLineRunner에서 updateStudent 실행
+
+메인 애플리케이션에서는 `updateStudent` 메서드를 만들어 수정 기능을 테스트했다.
+
+흐름은 다음과 같다.
+
+1. 수정할 학생의 id를 지정한다.
+2. `studentDAO.findById()`로 해당 학생을 조회한다.
+3. setter 메서드로 이름을 변경한다.
+4. `studentDAO.update()`를 호출해서 DB에 반영한다.
+5. 수정된 학생 정보를 출력한다.
+
+예시 코드는 다음과 같다.
+
+```java
+private void updateStudent(StudentDAO studentDAO) {
+
+    int studentId = 1;
+
+    System.out.println("Getting student with id: " + studentId);
+
+    Student myStudent = studentDAO.findById(studentId);
+
+    System.out.println("Updating student...");
+
+    myStudent.setFirstName("Scooby");
+
+    studentDAO.update(myStudent);
+
+    System.out.println("Updated student: " + myStudent);
+}
+```
+
+실행 후 MySQL Workbench에서 `student` 테이블을 조회하여 id가 1인 학생의 first name이 변경된 것을 확인했다.
+
+이후 다시 `John`으로 변경하여 수정 기능이 정상적으로 동작하는지 한 번 더 확인했다.
+
+
+---
+
+## 3-51. JPA로 객체 삭제하기
+
+이번에는 CRUD 중 Delete 기능을 구현했다.
+
+JPA에서 특정 객체 하나를 삭제하는 기본 흐름은 다음과 같다.
+
+1. `EntityManager.find()`로 삭제할 Entity를 조회한다.
+2. `EntityManager.remove()`를 사용해서 해당 Entity를 삭제한다.
+
+예시 흐름은 다음과 같다.
+
+```java
+Student student = entityManager.find(Student.class, id);
+
+entityManager.remove(student);
+```
+
+`remove()`는 전달받은 Entity를 데이터베이스에서 삭제한다.
+
+---
+
+## 3-52. StudentDAO에 delete 메서드 추가
+
+먼저 `StudentDAO` 인터페이스에 `delete` 메서드를 추가했다.
+
+```java
+void delete(Integer id);
+```
+
+이 메서드는 삭제할 학생의 Primary Key 값을 전달받는다.
+
+---
+
+## 3-53. StudentDAOImpl에서 delete 구현
+
+`StudentDAOImpl`에서는 `EntityManager.find()`와 `EntityManager.remove()`를 사용해서 삭제 기능을 구현했다.
+
+```java
+@Override
+@Transactional
+public void delete(Integer id) {
+
+    Student theStudent = entityManager.find(Student.class, id);
+
+    entityManager.remove(theStudent);
+}
+```
+
+삭제 작업도 데이터베이스를 변경하는 작업이므로 `@Transactional`을 붙였다.
+
+---
+
+## 3-54. CommandLineRunner에서 deleteStudent 실행
+
+메인 애플리케이션에서는 `deleteStudent` 메서드를 만들어 특정 학생 한 명을 삭제했다.
+
+```java
+private void deleteStudent(StudentDAO studentDAO) {
+
+    int studentId = 3;
+
+    System.out.println("Deleting student id: " + studentId);
+
+    studentDAO.delete(studentId);
+}
+```
+
+실행 전 MySQL Workbench에서 id가 3인 학생이 존재하는 것을 확인했다.
+
+실행 후 다시 `student` 테이블을 조회하니 id가 3인 학생이 삭제된 것을 확인했다.
+
+
+---
+
+## 3-55. 여러 객체 삭제하기
+
+JPA에서는 조건을 사용해서 여러 객체를 한 번에 삭제할 수도 있다.
+
+예를 들어 특정 last name을 가진 학생들을 모두 삭제하려면 JPQL을 사용할 수 있다.
+
+```java
+entityManager.createQuery(
+    "DELETE FROM Student WHERE lastName = 'Smith'")
+    .executeUpdate();
+```
+
+여기서 `Student`는 데이터베이스 테이블 이름이 아니라 JPA Entity 이름이다.
+
+`lastName`도 데이터베이스 컬럼명 `last_name`이 아니라 Java Entity의 필드 이름이다.
+
+마지막의 `executeUpdate()`는 실제 쿼리를 실행하는 메서드이다.
+
+메서드 이름은 `update`지만, 여기서는 삭제 작업에도 사용된다.
+JPA API에서 `executeUpdate()`는 데이터베이스를 변경하는 쿼리 실행을 의미하는 일반적인 이름으로 사용된다.
+
+즉, update뿐만 아니라 delete 작업에도 사용된다.
+
+---
+
+## 3-56. deleteAll 메서드 추가
+
+이번 실습에서는 모든 학생을 삭제하는 `deleteAll` 메서드를 추가했다.
+
+먼저 `StudentDAO` 인터페이스에 다음 메서드를 추가했다.
+
+```java
+int deleteAll();
+```
+
+삭제된 행의 개수를 알고 싶기 때문에 반환 타입은 `int`로 지정했다.
+
+---
+
+## 3-57. StudentDAOImpl에서 deleteAll 구현
+
+`StudentDAOImpl`에서는 JPQL delete 쿼리를 사용해서 모든 학생을 삭제했다.
+
+```java
+@Override
+@Transactional
+public int deleteAll() {
+
+    int numRowsDeleted = entityManager.createQuery("DELETE FROM Student").executeUpdate();
+
+    return numRowsDeleted;
+}
+```
+
+`DELETE FROM Student`는 `Student` Entity에 해당하는 모든 데이터를 삭제한다.
+
+조건절이 없기 때문에 테이블의 모든 학생 데이터가 삭제된다.
+
+`executeUpdate()`는 삭제된 행의 수를 반환한다.
+
+---
+
+## 3-58. CommandLineRunner에서 deleteAll 실행
+
+메인 애플리케이션에서는 `deleteAllStudents` 메서드를 만들어 전체 삭제 기능을 테스트했다.
+
+```java
+private void deleteAllStudents(StudentDAO studentDAO) {
+
+    System.out.println("Deleting all students");
+
+    int numRowsDeleted = studentDAO.deleteAll();
+
+    System.out.println("Deleted row count: " + numRowsDeleted);
+}
+```
+
+실행 전 MySQL Workbench에서 여러 학생 데이터가 존재하는 것을 확인했다.
+
+실행 후 콘솔에는 삭제된 row 수가 출력되었고, MySQL Workbench에서 `student` 테이블을 다시 조회했을 때 모든 데이터가 삭제된 것을 확인했다.
+
+
+---
+
+## 3-59. 이번 범위에서 배운 점
+
+이번 범위에서는 CRUD 중 Update와 Delete 기능을 구현했다.
+
+정리하면 다음과 같다.
+
+* `EntityManager.merge()`를 사용하면 Entity의 변경 내용을 데이터베이스에 반영할 수 있다.
+* 수정 작업은 데이터베이스를 변경하므로 `@Transactional`이 필요하다.
+* 특정 Entity를 삭제할 때는 `EntityManager.find()`로 먼저 조회한 뒤 `EntityManager.remove()`를 사용한다.
+* 삭제 작업도 데이터베이스를 변경하므로 `@Transactional`이 필요하다.
+* JPQL의 `DELETE FROM Student`를 사용하면 여러 Entity를 한 번에 삭제할 수 있다.
+* JPQL에서 `Student`는 테이블 이름이 아니라 JPA Entity 이름이다.
+* JPQL에서 `lastName` 같은 이름은 DB 컬럼명이 아니라 Java Entity 필드명이다.
+* `executeUpdate()`는 update뿐만 아니라 delete처럼 데이터베이스를 변경하는 쿼리에도 사용된다.
+* `executeUpdate()`는 변경된 row 수를 반환한다.
+
+---
+
+## 3-60. Section 3 마무리
+
+Section 3에서는 Spring Boot와 JPA/Hibernate를 사용하여 기본적인 CRUD 기능을 구현했다.
+
+최종적으로 구현한 DAO 메서드는 다음과 같다.
+
+| 메서드                                  | 기능          |
+| ------------------------------------ | ----------- |
+| `save(Student student)`              | 학생 저장       |
+| `findById(Integer id)`               | id 기준 학생 조회 |
+| `findAll()`                          | 전체 학생 조회    |
+| `findByLastName(String theLastName)` | 성 기준 학생 조회  |
+| `update(Student student)`            | 학생 정보 수정    |
+| `delete(Integer id)`                 | id 기준 학생 삭제 |
+| `deleteAll()`                        | 전체 학생 삭제    |
+
+이번 Section을 통해 Java 객체가 JPA Entity로 데이터베이스 테이블에 매핑되고, `EntityManager`를 통해 저장, 조회, 수정, 삭제되는 전체 흐름을 학습했다.
+
+이 내용은 이후 REST API나 Spring Security에서 사용자 정보, 게시글, 상품 정보 같은 데이터를 데이터베이스에 저장하고 조회하는 기반이 된다.
