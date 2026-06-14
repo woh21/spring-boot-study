@@ -1,3 +1,5 @@
+> 제출 페이지의 문서 #1 클릭 링크가 잘못 연결되어 안내드립니다. 문서 #1 작업 내용 정리 문서는 [docs/final-submission.md](https://github.com/woh21/spring-boot-study/blob/main/docs/final-submission.md)에서 확인할 수 있습니다.
+
 # Spring Boot + JPA EntityManager로 CRUD 기능 단계별 구현하기
 
 ## 1. 기술자료 목표
